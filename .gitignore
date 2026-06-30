@@ -5,7 +5,5 @@ coverage/
 .agent-context-graph/cache.sqlite-*
 .agent-context-graph/.lock
 *.log
-Build.md
-BUILD_TRACKER.md
 BUILD_TRACKER.md
 Build.md
