@@ -19,6 +19,7 @@ This file tracks the implementation against `Build.md` so the project stays alig
 - [x] Complete README
 - [x] Run build and tests
 - [x] Expand README into clone-and-test user guide
+- [x] Add Antigravity testing instructions
 
 ## Decisions
 
@@ -36,3 +37,4 @@ This file tracks the implementation against `Build.md` so the project stays alig
 - Built CLI `serve` smoke test passed; the stdio server stayed alive until stopped.
 - Built CLI connector smoke test passed for Codex, Claude Code, and Cursor config files.
 - README expanded with prerequisites, GitHub clone flow, `npm link`, direct CLI usage, target project setup, client setup, expected workflow, verification, troubleshooting, and commit/ignore guidance.
+- README updated with Antigravity MCP stdio setup guidance, including linked-command and direct-Node variants.

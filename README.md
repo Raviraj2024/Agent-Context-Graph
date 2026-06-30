@@ -132,6 +132,82 @@ node C:\Users\you\Projects\agent-context-graph\dist\bin\agent-context-graph.js i
 
 ## Client Setup
 
+### Antigravity
+
+Antigravity is an agent-first IDE, so it is a good place to test this project. The exact MCP settings screen or config path may vary by Antigravity version, but the server values are the same anywhere MCP stdio servers are supported.
+
+First prepare this tool:
+
+```bash
+git clone <agent-context-graph-repo-url>
+cd agent-context-graph
+npm install
+npm run build
+npm link
+```
+
+Then go to the project you want Antigravity to work on:
+
+```bash
+cd /path/to/your/target-project
+agent-context-graph init
+```
+
+In Antigravity's MCP server settings, add a stdio server with these values:
+
+```json
+{
+  "name": "agent-context-graph",
+  "command": "agent-context-graph",
+  "args": ["serve"],
+  "cwd": "/absolute/path/to/your/target-project"
+}
+```
+
+If you do not use `npm link`, use the direct Node command instead:
+
+```json
+{
+  "name": "agent-context-graph",
+  "command": "node",
+  "args": ["/absolute/path/to/agent-context-graph/dist/bin/agent-context-graph.js", "serve"],
+  "cwd": "/absolute/path/to/your/target-project"
+}
+```
+
+On Windows, use escaped backslashes or forward slashes in JSON paths:
+
+```json
+{
+  "name": "agent-context-graph",
+  "command": "node",
+  "args": ["C:/Users/you/Projects/agent-context-graph/dist/bin/agent-context-graph.js", "serve"],
+  "cwd": "C:/Users/you/Projects/my-target-project"
+}
+```
+
+Restart Antigravity after adding the MCP server. Then use a prompt like:
+
+```text
+Use the agent-context-graph MCP server before editing.
+First call get_project_overview, init_or_refresh_graph, query relevant best practices,
+declare the task scope, check scope before edits, and record every change.
+
+Now implement: <your task>
+```
+
+For example:
+
+```text
+Use the agent-context-graph MCP server before editing.
+First call get_project_overview, init_or_refresh_graph, query relevant best practices,
+declare the task scope, check scope before edits, and record every change.
+
+Now add password reset support to the auth module.
+```
+
+If Antigravity shows the MCP server as connected, the agent should be able to call the graph, scope-lock, and logging tools automatically during development.
+
 ### Codex
 
 From your target project:
