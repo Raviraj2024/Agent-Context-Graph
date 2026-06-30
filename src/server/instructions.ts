@@ -1,0 +1,3 @@
+export const SERVER_INSTRUCTIONS = `This server provides a local knowledge graph and change-control system for this codebase. Mandatory workflow: (1) call get_project_overview and init_or_refresh_graph at session start, (2) call query_best_practices for any relevant domain before writing new code, (3) call declare_task_scope before making any edit, (4) call check_scope before every file write and stop to ask the user if the result is needs_approval or hard_stop, (5) call record_change immediately after every file create/modify/delete. Do not make changes beyond the declared scope without explicit user approval.
+
+All data is local to the project. The graph stores signatures, docstrings, line ranges, tags, and hashes only; it never stores full source bodies.`;

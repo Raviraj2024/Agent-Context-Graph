@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.agent-context-graph/cache.sqlite
+.agent-context-graph/cache.sqlite-*
+.agent-context-graph/.lock
+*.log
