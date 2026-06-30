@@ -18,6 +18,7 @@ This file tracks the implementation against `Build.md` so the project stays alig
 - [x] Add tests
 - [x] Complete README
 - [x] Run build and tests
+- [x] Expand README into clone-and-test user guide
 
 ## Decisions
 
@@ -34,3 +35,4 @@ This file tracks the implementation against `Build.md` so the project stays alig
 - Built CLI `init` smoke test passed against a temporary copy of `sample-ts-project`; it produced graph JSONL files and config.
 - Built CLI `serve` smoke test passed; the stdio server stayed alive until stopped.
 - Built CLI connector smoke test passed for Codex, Claude Code, and Cursor config files.
+- README expanded with prerequisites, GitHub clone flow, `npm link`, direct CLI usage, target project setup, client setup, expected workflow, verification, troubleshooting, and commit/ignore guidance.

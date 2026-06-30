@@ -1,6 +1,8 @@
 # agent-context-graph
 
-`agent-context-graph` is a local MCP server for AI coding agents working inside a codebase. It builds a compact, queryable knowledge graph of files and symbols, enforces declared edit scope before file writes, and records append-only reasoning logs so future agents and maintainers can understand why changes were made.
+`agent-context-graph` is a 100% local MCP server for AI coding agents working inside a codebase. It builds a compact knowledge graph of files and symbols, enforces declared edit scope before writes, and records append-only reasoning logs so future agents and maintainers can understand why changes happened.
+
+No frontend is required. The human-facing interface is this README plus the command-line tool.
 
 ```mermaid
 flowchart LR
@@ -16,30 +18,190 @@ flowchart LR
 
 ## Privacy & Local-First Guarantee
 
-Everything runs on the user's machine. There is no SaaS service, telemetry, analytics, update check, crash reporting, GitHub API call, or external runtime API call. The only intended network activity is `npm install` fetching dependencies. The test suite includes a compiled-output static check in `test/noNetwork.test.ts` that fails if forbidden runtime network APIs are emitted.
+Everything runs on the user's machine. There is no SaaS service, telemetry, analytics, update check, crash reporting, GitHub API call, or external runtime API call. The only intended network activity is dependency installation through `npm install`.
 
-## Install
+The test suite includes `test/noNetwork.test.ts`, which scans compiled JavaScript for forbidden runtime network APIs.
+
+## Requirements
+
+- Node.js 20 or newer.
+- npm.
+- Git, if you are cloning from GitHub.
+- Windows, macOS, or Linux.
+
+This project uses `better-sqlite3`, a native Node package. Most users should receive a prebuilt binary during `npm install`. If npm has to build it locally, your machine may need normal C/C++ build tools for your platform.
+
+## Quick Start From GitHub
+
+Clone the repository:
+
+```bash
+git clone <your-repo-url>
+cd agent-context-graph
+```
+
+Install dependencies and build:
 
 ```bash
 npm install
 npm run build
+npm test
 ```
 
-Inside a target project:
+Run the CLI from the cloned repo:
 
 ```bash
-npx agent-context-graph init
-npx agent-context-graph connect codex
-npx agent-context-graph connect claude-code
-npx agent-context-graph connect cursor
+node dist/bin/agent-context-graph.js status
 ```
 
-`agent-context-graph serve` starts the stdio MCP server. It is also the default command when no subcommand is provided.
+For easier local testing, link the command globally on your machine:
 
-## CLI
+```bash
+npm link
+```
 
-- `init`: scans the current project, writes defaults, builds the graph snapshot, and populates the local cache.
-- `connect <codex|claude-code|cursor>`: merges an MCP server entry into the selected local client config.
+After linking, this should work from any directory:
+
+```bash
+agent-context-graph status
+```
+
+To remove the local global link later:
+
+```bash
+npm unlink -g agent-context-graph
+```
+
+## Use It In A Target Project
+
+A target project is the codebase you want an AI coding agent to work on.
+
+Go to that project:
+
+```bash
+cd /path/to/your/target-project
+```
+
+Initialize the graph:
+
+```bash
+agent-context-graph init
+```
+
+Check status:
+
+```bash
+agent-context-graph status
+```
+
+Connect your MCP client:
+
+```bash
+agent-context-graph connect codex
+agent-context-graph connect claude-code
+agent-context-graph connect cursor
+```
+
+You only need to run the connect command for the client you actually use. The command merges an MCP server entry into the project-local config file for that client.
+
+Start the server manually for a smoke test:
+
+```bash
+agent-context-graph serve
+```
+
+In normal use, your MCP client starts `agent-context-graph serve` for you.
+
+## If You Do Not Want To Use npm link
+
+You can run the built CLI directly from the cloned repository.
+
+From a target project:
+
+```bash
+node /absolute/path/to/agent-context-graph/dist/bin/agent-context-graph.js init
+node /absolute/path/to/agent-context-graph/dist/bin/agent-context-graph.js status
+node /absolute/path/to/agent-context-graph/dist/bin/agent-context-graph.js connect codex
+```
+
+On Windows PowerShell, an example path looks like:
+
+```powershell
+node C:\Users\you\Projects\agent-context-graph\dist\bin\agent-context-graph.js init
+```
+
+## Client Setup
+
+### Codex
+
+From your target project:
+
+```bash
+agent-context-graph connect codex
+```
+
+This writes or updates:
+
+```text
+.codex/config.toml
+```
+
+It adds an MCP server named `agent-context-graph` with `serve` as the command.
+
+### Claude Code
+
+From your target project:
+
+```bash
+agent-context-graph connect claude-code
+```
+
+This writes or updates:
+
+```text
+.claude/mcp.json
+```
+
+### Cursor
+
+From your target project:
+
+```bash
+agent-context-graph connect cursor
+```
+
+This writes or updates:
+
+```text
+.cursor/mcp.json
+```
+
+## Expected Agent Workflow
+
+MCP clients read the server instructions at session start. The intended workflow is:
+
+1. Call `get_project_overview`.
+2. Call `init_or_refresh_graph`.
+3. Call `query_best_practices` for the relevant domain before implementing.
+4. Call `declare_task_scope` before editing files.
+5. Call `check_scope` before every file write.
+6. Stop and ask the user if a proposed change returns `needs_approval` or `hard_stop`.
+7. Call `record_change` immediately after every create, modify, or delete.
+
+The server does not show its own approval prompt. It returns structured decisions so the host agent can ask the human.
+
+## CLI Reference
+
+```bash
+agent-context-graph init
+agent-context-graph connect <codex|claude-code|cursor>
+agent-context-graph serve
+agent-context-graph status
+agent-context-graph reset
+```
+
+- `init`: scans the current project, writes defaults, builds the graph snapshot, loads standards, and populates the local SQLite cache.
+- `connect <codex|claude-code|cursor>`: merges an MCP server entry into the selected project-local client config.
 - `serve`: starts the stdio MCP server.
 - `status`: prints snapshot/cache counts and cache metadata.
 - `reset`: deletes only `cache.sqlite`, then rebuilds cache state from the snapshot/current files.
@@ -59,7 +221,7 @@ npx agent-context-graph connect cursor
 
 ## Project Data Directory
 
-When used inside another project, this tool creates `.agent-context-graph/`:
+When used inside a target project, this tool creates `.agent-context-graph/`:
 
 - `config.json`: project-local configuration.
 - `graph/nodes.jsonl`: canonical committed graph nodes.
@@ -69,13 +231,131 @@ When used inside another project, this tool creates `.agent-context-graph/`:
 - `cache.sqlite`: local rebuildable cache, do not commit.
 - `.lock`: temporary cache write lock, do not commit.
 
-Target projects should add:
+Target projects should commit:
+
+```text
+.agent-context-graph/config.json
+.agent-context-graph/graph/nodes.jsonl
+.agent-context-graph/graph/edges.jsonl
+.agent-context-graph/logs/*.jsonl
+.agent-context-graph/change-index.json
+```
+
+Target projects should ignore:
 
 ```gitignore
 .agent-context-graph/cache.sqlite
 .agent-context-graph/cache.sqlite-*
 .agent-context-graph/.lock
 ```
+
+## Supported Source Files
+
+The initial adapters index:
+
+- TypeScript: `.ts`, `.tsx`
+- JavaScript: `.js`, `.jsx`, `.mjs`, `.cjs`
+- Python: `.py`
+
+The graph stores signatures, docstrings, line ranges, tags, and hashes. It never stores full file contents or full function bodies.
+
+The default scanner skips `node_modules`, `.git`, common build output folders, binary files, `.agent-context-graph`, and files larger than 1 MB.
+
+## Best-Practices Knowledge Base
+
+The server includes local markdown standards under `src/knowledgeBase/content/` for:
+
+- backend architecture
+- API design
+- auth and RBAC
+- security
+- testing strategy
+- error handling and observability
+- data modeling
+
+These are loaded into the graph as `standard` nodes and returned by `query_best_practices`.
+
+## Verifying A Clone
+
+After cloning and building this repository, run:
+
+```bash
+npm run build
+npm test
+```
+
+Expected result:
+
+```text
+Test Files  7 passed
+Tests       10 passed
+```
+
+You can also test `init` against a temporary project:
+
+```bash
+cd /path/to/some/project
+agent-context-graph init
+agent-context-graph status
+```
+
+You should see `.agent-context-graph/config.json`, `.agent-context-graph/graph/nodes.jsonl`, and `.agent-context-graph/graph/edges.jsonl`.
+
+## Troubleshooting
+
+### `agent-context-graph` command not found
+
+Run this from the cloned repo:
+
+```bash
+npm link
+```
+
+Or use the direct Node command:
+
+```bash
+node /absolute/path/to/agent-context-graph/dist/bin/agent-context-graph.js status
+```
+
+### `npm install` fails on `better-sqlite3`
+
+Use Node 20 or newer. If your Node version is very new and a prebuilt binary is not available, npm may try to compile locally. Install your platform's native build tools, then rerun:
+
+```bash
+npm install
+```
+
+On Windows, this may require Visual Studio Build Tools with C++ support. On macOS, this may require Xcode Command Line Tools. On Linux, this may require Python, make, and a C++ compiler.
+
+### `status` shows no graph nodes
+
+Run:
+
+```bash
+agent-context-graph init
+```
+
+Make sure you are inside the target project, not inside an unrelated parent directory.
+
+### MCP client does not show the server
+
+Run the relevant connect command again from the target project:
+
+```bash
+agent-context-graph connect codex
+```
+
+Then restart the MCP client so it reloads local config.
+
+### Cache looks stale or broken
+
+Run:
+
+```bash
+agent-context-graph reset
+```
+
+This removes only the rebuildable SQLite cache. It does not delete graph JSONL snapshots or logs.
 
 ## Design Decisions
 
@@ -95,6 +375,7 @@ Target projects should add:
 ## Development
 
 ```bash
+npm install
 npm run build
 npm test
 ```
