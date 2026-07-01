@@ -15,6 +15,10 @@ import { SERVER_INSTRUCTIONS } from "./instructions.js";
 
 const scopes = new Map<string, TaskScope>();
 
+export function resolveProjectRoot(projectRoot?: string): string {
+  return projectRoot ?? process.env.AGENT_CONTEXT_GRAPH_ROOT ?? process.cwd();
+}
+
 const toolSchemas = [
   {
     name: "get_project_overview",
@@ -178,8 +182,9 @@ function traverse(store: GraphStore, startId: string, maxDepth: number): { stati
   return { static: [...staticNodes.values()], inferred: [...inferredNodes.values()], edges };
 }
 
-export function createMcpServer(projectRoot = process.cwd()): Server {
-  const logger = new SessionLogger(projectRoot);
+export function createMcpServer(projectRoot?: string): Server {
+  const resolvedProjectRoot = resolveProjectRoot(projectRoot);
+  const logger = new SessionLogger(resolvedProjectRoot);
   const server = new Server(
     {
       name: "agent-context-graph",
@@ -197,7 +202,7 @@ export function createMcpServer(projectRoot = process.cwd()): Server {
     const name = request.params.name;
 
     if (name === "init_or_refresh_graph") {
-      const result = initOrRefreshGraph(projectRoot);
+      const result = initOrRefreshGraph(resolvedProjectRoot);
       logger.write({
         scopeId: null,
         action: "graph_updated",
@@ -209,7 +214,7 @@ export function createMcpServer(projectRoot = process.cwd()): Server {
       return textResult(result);
     }
 
-    return withStore(projectRoot, (store) => {
+    return withStore(resolvedProjectRoot, (store) => {
       if (name === "get_project_overview") {
         const nodes = store.listNodes();
         const rootNode = nodes.find((node) => node.type === "root") ?? null;
@@ -281,12 +286,12 @@ export function createMcpServer(projectRoot = process.cwd()): Server {
         if (!scope) return textResult({ error: "scope_not_found", scopeId: parsed.scopeId });
         const safeChanges = parsed.proposedChanges.map((change) => {
           try {
-            return toProjectRelative(projectRoot, change);
+            return toProjectRelative(resolvedProjectRoot, change);
           } catch {
             return change;
           }
         });
-        const decisions = classifyChanges(projectRoot, store, scope, safeChanges);
+        const decisions = classifyChanges(resolvedProjectRoot, store, scope, safeChanges);
         for (const decision of decisions) {
           logger.write({
             scopeId: scope.scopeId,
@@ -308,8 +313,8 @@ export function createMcpServer(projectRoot = process.cwd()): Server {
           summary: z.string(),
           reasoning: z.string()
         }).parse(args);
-        const safePath = toProjectRelative(projectRoot, parsed.filePath);
-        assertInsideProject(projectRoot, safePath);
+        const safePath = toProjectRelative(resolvedProjectRoot, parsed.filePath);
+        assertInsideProject(resolvedProjectRoot, safePath);
         const entry = logger.write({
           scopeId: parsed.scopeId,
           action: parsed.action,
@@ -324,7 +329,7 @@ export function createMcpServer(projectRoot = process.cwd()): Server {
       if (name === "get_node_history") {
         const { identifier } = z.object({ identifier: z.string() }).parse(args);
         const node = store.getNode(identifier);
-        return textResult({ identifier, history: getChangeHistory(projectRoot, node?.filePath ?? identifier) });
+        return textResult({ identifier, history: getChangeHistory(resolvedProjectRoot, node?.filePath ?? identifier) });
       }
 
       return textResult({ error: "unknown_tool", name });
@@ -334,7 +339,7 @@ export function createMcpServer(projectRoot = process.cwd()): Server {
   return server;
 }
 
-export async function serve(projectRoot = process.cwd()): Promise<void> {
+export async function serve(projectRoot?: string): Promise<void> {
   const server = createMcpServer(projectRoot);
   await server.connect(new StdioServerTransport());
 }

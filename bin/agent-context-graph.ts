@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "serve") {
-    await serve(projectRoot);
+    await serve(process.env.AGENT_CONTEXT_GRAPH_ROOT ?? projectRoot);
     return;
   }
 
