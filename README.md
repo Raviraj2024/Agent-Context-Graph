@@ -191,7 +191,10 @@ Restart Antigravity after adding the MCP server. Then use a prompt like:
 ```text
 Use the agent-context-graph MCP server before editing.
 First call get_project_overview, init_or_refresh_graph, query relevant best practices,
-declare the task scope, check scope before edits, and record every change.
+declare the task scope, check scope before edits, record every change,
+and run the actual app/test command before your final answer.
+If the run command fails because a dependency or command is missing, fix it in scope
+or report the blocker clearly. Do not give me an untested run command.
 
 Now implement: <your task>
 ```
@@ -201,7 +204,10 @@ For example:
 ```text
 Use the agent-context-graph MCP server before editing.
 First call get_project_overview, init_or_refresh_graph, query relevant best practices,
-declare the task scope, check scope before edits, and record every change.
+declare the task scope, check scope before edits, record every change,
+and run the actual app/test command before your final answer.
+If the run command fails because a dependency or command is missing, fix it in scope
+or report the blocker clearly. Do not give me an untested run command.
 
 Now add password reset support to the auth module.
 ```
@@ -263,8 +269,12 @@ MCP clients read the server instructions at session start. The intended workflow
 5. Call `check_scope` before every file write.
 6. Stop and ask the user if a proposed change returns `needs_approval` or `hard_stop`.
 7. Call `record_change` immediately after every create, modify, or delete.
+8. Run the actual build, test, or start command needed to verify the result.
+9. If verification fails because a dependency or command is missing, fix it when safely in scope or report the exact blocker in the final answer.
 
 The server does not show its own approval prompt. It returns structured decisions so the host agent can ask the human.
+
+For generated apps or games, the agent should not simply invent a command and hand it to the user. It should run the command itself, catch dependency problems such as `uvicorn` not being installed, and either add the dependency to the project setup or switch to a working built-in command.
 
 ## CLI Reference
 
