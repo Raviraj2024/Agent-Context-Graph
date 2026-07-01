@@ -36,7 +36,7 @@ This project uses `better-sqlite3`, a native Node package. Most users should rec
 Clone the repository:
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Raviraj2024/Agent-Context-Graph.git
 cd agent-context-graph
 ```
 
