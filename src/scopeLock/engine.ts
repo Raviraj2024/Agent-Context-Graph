@@ -12,10 +12,34 @@ function globMatch(path: string, glob: string): boolean {
   return new RegExp(`^${escaped}$`).test(path);
 }
 
+function normalizeIdentifier(identifier: string): string {
+  return identifier.replace(/\\/g, "/").replace(/^\.\//, "").toLowerCase();
+}
+
+function isDeclared(scope: TaskScope, nodeOrPath: string, node: GraphNode | null): boolean {
+  const normalizedTarget = normalizeIdentifier(node?.id ?? nodeOrPath);
+  const normalizedPath = normalizeIdentifier(node?.filePath ?? nodeOrPath);
+  const normalizedQualifiedName = normalizeIdentifier(node?.qualifiedName ?? nodeOrPath);
+
+  return scope.declaredNodeIds.some((declared) => {
+    const normalizedDeclared = normalizeIdentifier(declared);
+    return (
+      normalizedDeclared === normalizedTarget ||
+      normalizedDeclared === normalizedPath ||
+      normalizedDeclared === normalizedQualifiedName
+    );
+  });
+}
+
 function isHardStop(projectRoot: string, nodeOrPath: string, node: GraphNode | null): string | null {
   const config = loadConfig(projectRoot);
   const lowered = nodeOrPath.toLowerCase();
   const nodePath = node?.filePath?.toLowerCase() ?? lowered;
+  const normalizedPath = normalizeIdentifier(nodePath);
+
+  if (normalizedPath === ".gitignore" || normalizedPath.endsWith("/.gitignore")) {
+    return null;
+  }
 
   if (config.hardStopPathFragments.some((fragment) => nodePath.includes(fragment.toLowerCase()))) {
     return "Target matches a configured security-sensitive path fragment.";
@@ -54,11 +78,11 @@ export function classifyChange(projectRoot: string, store: GraphStore, scope: Ta
     };
   }
 
-  if (node && scope.declaredNodeIds.includes(node.id)) {
+  if (isDeclared(scope, nodeOrPath, node)) {
     return {
       nodeOrPath,
       classification: "auto_allowed",
-      reason: "Target node is explicitly declared in the active task scope.",
+      reason: "Target is explicitly declared in the active task scope.",
       resolvedAt: new Date().toISOString(),
       approved: true
     };

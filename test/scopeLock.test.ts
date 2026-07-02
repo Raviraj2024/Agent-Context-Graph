@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -47,6 +47,42 @@ describe("scope lock classification", () => {
     expect(classifyChange(root, store, scope, "src/feature.ts::run").classification).toBe("auto_allowed");
     expect(classifyChange(root, store, scope, "src/helper.ts").classification).toBe("needs_approval");
     expect(classifyChange(root, store, scope, "src/other.ts").classification).toBe("needs_approval");
+    store.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("auto-allows declared new file paths before graph nodes exist", () => {
+    const root = mkdtempSync(join(tmpdir(), "acg-scope-new-"));
+    const store = new GraphStore(root);
+    store.replaceAll([], []);
+    const scope = createTaskScope("session", "create app", ["package.json", "src/cli.js", ".gitignore"]);
+
+    expect(classifyChange(root, store, scope, "package.json").classification).toBe("auto_allowed");
+    expect(classifyChange(root, store, scope, "src/cli.js").classification).toBe("auto_allowed");
+    expect(classifyChange(root, store, scope, ".gitignore").classification).toBe("auto_allowed");
+    store.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("does not hard-stop .gitignore when a broad .git fragment is configured", () => {
+    const root = mkdtempSync(join(tmpdir(), "acg-scope-gitignore-"));
+    mkdirSync(join(root, ".agent-context-graph"), { recursive: true });
+    writeFileSync(
+      join(root, ".agent-context-graph", "config.json"),
+      JSON.stringify({
+        hardStopPathFragments: [".git"],
+        hardStopGlobs: [],
+        publicApiTags: [],
+        excludeDirectories: [],
+        excludeFiles: [],
+        maxFileBytes: 1024
+      })
+    );
+    const store = new GraphStore(root);
+    store.replaceAll([], []);
+    const scope = createTaskScope("session", "edit ignore", [".gitignore"]);
+
+    expect(classifyChange(root, store, scope, ".gitignore").classification).toBe("auto_allowed");
     store.close();
     rmSync(root, { recursive: true, force: true });
   });
